@@ -22,6 +22,14 @@ var current_settings = {}
 func _ready():
 	hide_settings()
 	
+	# 【修复1】显式设置鼠标过滤模式，确保UI可见时能捕获所有鼠标事件
+	settings_ui.mouse_filter = Control.MOUSE_FILTER_STOP
+	
+	# 【修复2】确保背景ColorRect也能阻止鼠标穿透
+	var color_rect = $SettingsUI/ColorRect
+	if color_rect:
+		color_rect.mouse_filter = Control.MOUSE_FILTER_STOP
+	
 	# 初始化API类型选项
 	for type in SettingsManager.api_types:
 		api_type_option.add_item(type)
@@ -46,11 +54,21 @@ func _ready():
 	set_process_input(true)
 
 func _input(event):
+	# 【修复3】处理ESC键时标记事件已处理，避免与SaveLoadUI冲突
 	if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
+		# 检查SaveLoadUI是否可见，如果可见则不处理（避免冲突）
+		var save_load_mgr = get_node_or_null("/root/SaveLoadUIManager")
+		if save_load_mgr:
+			var save_load_ui = save_load_mgr.get_node_or_null("SaveLoadUI")
+			if save_load_ui and save_load_ui.visible:
+				return  # 让SaveLoadUIManager处理
+		
 		if settings_ui.visible:
 			hide_settings()
+			get_viewport().set_input_as_handled()  # 标记已处理
 		else:
 			show_settings()
+			get_viewport().set_input_as_handled()  # 标记已处理
 
 # 设置变化回调
 func _on_settings_changed(new_settings: Dictionary):
@@ -185,6 +203,8 @@ func _on_quit_pressed():
 # 显示设置界面
 func show_settings():
 	settings_ui.visible = true
+	# 【修复4】确保UI可见时设置为可交互
+	settings_ui.mouse_filter = Control.MOUSE_FILTER_STOP
 
 # 隐藏设置界面
 func hide_settings():

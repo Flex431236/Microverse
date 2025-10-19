@@ -13,6 +13,7 @@ enum APIType {
 	CLAUDE,
 	SILICONFLOW,
 	KIMI,
+	GLM,  # 新增智谱AI
 	OPENAI_COMPATIBLE  # 新增：OpenAI兼容API枚举
 }
 
@@ -137,6 +138,18 @@ static func _initialize():
 		"硅基流动",
 		"https://api.siliconflow.cn/v1/chat/completions",
 		["deepseek-ai/DeepSeek-V3.1-Terminus", "inclusionAI/Ring-1T", "zai-org/GLM-4.6"],
+		true,
+		{"Content-Type": "application/json", "Authorization": "Bearer {api_key}"},
+		"openai",
+		"openai"
+	)
+	
+	# 智谱AI配置
+	_providers["GLM"] = APIProvider.new(
+		"GLM",
+		"智谱AI (GLM)",
+		"https://open.bigmodel.cn/api/paas/v4/chat/completions",
+		["glm-4.6", "glm-4.5-flash"],
 		true,
 		{"Content-Type": "application/json", "Authorization": "Bearer {api_key}"},
 		"openai",

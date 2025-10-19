@@ -43,7 +43,9 @@ func _ready():
 	create_ai_model_label()
 	
 	# 设置初始动画
-	$AnimatedSprite2D.play("idle_" + facing_direction)
+	if $AnimatedSprite2D:
+		$AnimatedSprite2D.visible = true
+		_safe_play_animation($AnimatedSprite2D, "idle_" + facing_direction)
 
 func set_selected(selected: bool):
 	is_selected = selected
@@ -237,8 +239,15 @@ func _recalculate_path():
 		print("[CharacterController] %s 重新计算路径完成，路径点数量: %d" % [name, navigation_path.size()])
 
 func _physics_process(delta):
-	# AI控制的角色或被选中的角色都可以移动
+	# 【修复1】确保AnimatedSprite2D始终可见
+	if $AnimatedSprite2D:
+		$AnimatedSprite2D.visible = true
+	
+	# 【修复2】改进状态检查逻辑，避免异常状态导致动画不更新
+	# 只有当角色既没被选中又不是AI控制时才跳过
 	if not is_selected and ai_agent.is_player_controlled:
+		# 即使在异常状态下，也要更新动画，避免贴图不可见
+		update_animation()
 		return
 		
 	# 处理键盘输入 - 只有被选中的角色才能响应键盘输入
@@ -254,8 +263,11 @@ func _physics_process(delta):
 		target_position = Vector2.ZERO
 		velocity = input_direction * speed
 		
+		# 【修复3】完整更新所有方向的facing_direction
 		if abs(input_direction.x) > abs(input_direction.y):
 			facing_direction = "right" if input_direction.x > 0 else "left"
+		else:
+			facing_direction = "down" if input_direction.y > 0 else "up"
 	elif navigation_path.size() > 0:
 		# 沿着计算出的路径移动
 		if path_index < navigation_path.size():
@@ -279,9 +291,11 @@ func _physics_process(delta):
 			else:
 				velocity = Vector2.ZERO
 			
-			# 更新朝向
+			# 【修复4】更新朝向 - 包括垂直方向
 			if abs(final_direction.x) > abs(final_direction.y):
 				facing_direction = "right" if final_direction.x > 0 else "left"
+			else:
+				facing_direction = "down" if final_direction.y > 0 else "up"
 			
 			# 到达路径点后移动到下一个点 - 动态调整阈值
 			var base_threshold = 12.0
@@ -346,7 +360,7 @@ func sit_on_chair(chair):
 		elif facing_direction == "down":
 			anim_name = "sit_down"
 			
-		$AnimatedSprite2D.play(anim_name)
+		_safe_play_animation($AnimatedSprite2D, anim_name)
 		return true
 	return false
 
@@ -365,13 +379,14 @@ func stand_up_from_chair():
 		elif facing_direction == "down":
 			anim_name = "stand_down"
 			
-		$AnimatedSprite2D.play(anim_name)
+		_safe_play_animation($AnimatedSprite2D, anim_name)
 		
 		# 等待站起动画播放完成
-		await $AnimatedSprite2D.animation_finished
+		if $AnimatedSprite2D:
+			await $AnimatedSprite2D.animation_finished
 		
 		# 切换到闲置动画
-		$AnimatedSprite2D.play("idle_" + facing_direction)
+		_safe_play_animation($AnimatedSprite2D, "idle_" + facing_direction)
 		
 		# 重置导航相关变量
 		navigation_path.clear()
@@ -390,34 +405,47 @@ func toggle_sit():
 	if is_sitting:
 		target_position = Vector2.ZERO
 		velocity = Vector2.ZERO
-		animated_sprite.play("sit_" + facing_direction)
+		_safe_play_animation(animated_sprite, "sit_" + facing_direction)
 	else:
-		animated_sprite.play("idle_" + facing_direction)
+		_safe_play_animation(animated_sprite, "idle_" + facing_direction)
 
 func update_animation():
 	var animated_sprite = $AnimatedSprite2D
+	if not animated_sprite:
+		return
+		
+	# 【修复5】确保AnimatedSprite2D可见
+	animated_sprite.visible = true
+	
 	if is_sitting:
 		return
 		
 	if velocity == Vector2.ZERO:
 		# 根据最后移动的方向播放对应的idle动画
 		var idle_anim = "idle_" + facing_direction
-		animated_sprite.play(idle_anim)
+		_safe_play_animation(animated_sprite, idle_anim)
 	else:
 		if abs(velocity.x) > abs(velocity.y):
 			if velocity.x > 0:
-				animated_sprite.play("run_right")
+				_safe_play_animation(animated_sprite, "run_right")
 				facing_direction = "right"
 			else:
-				animated_sprite.play("run_left")
+				_safe_play_animation(animated_sprite, "run_left")
 				facing_direction = "left"
 		else:
 			if velocity.y > 0:
-				animated_sprite.play("run_down")
+				_safe_play_animation(animated_sprite, "run_down")
 				facing_direction = "down"
 			else:
-				animated_sprite.play("run_up")
+				_safe_play_animation(animated_sprite, "run_up")
 				facing_direction = "up"
+
+# 【修复6】安全播放动画 - 检查动画是否存在
+func _safe_play_animation(animated_sprite: AnimatedSprite2D, anim_name: String):
+	if animated_sprite.sprite_frames and animated_sprite.sprite_frames.has_animation(anim_name):
+		animated_sprite.play(anim_name)
+	else:
+		print("[CharacterController] 警告：动画 '%s' 不存在，角色：%s" % [anim_name, name])
 
 # 移动到椅子并自动坐下
 func move_to_chair(chair):
