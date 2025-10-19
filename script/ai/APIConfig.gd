@@ -144,12 +144,12 @@ static func _initialize():
 		"openai"
 	)
 	
-	# 智谱AI配置
+	# 智谱AI配置（仅支持 glm-4-flash，超高并发200+）
 	_providers["GLM"] = APIProvider.new(
 		"GLM",
-		"智谱AI (GLM)",
+		"智谱AI (GLM-4-Flash)",
 		"https://open.bigmodel.cn/api/paas/v4/chat/completions",
-		["glm-4.6", "glm-4.5-flash"],
+		["glm-4-flash"],
 		true,
 		{"Content-Type": "application/json", "Authorization": "Bearer {api_key}"},
 		"openai",
@@ -209,13 +209,19 @@ static func build_request_data(api_type: String, model: String, prompt: String) 
 				"stream": false
 			}
 		"openai":
-			return {
+			var request_data = {
 				"model": model,
 				"messages": [{
 					"role": "user",
 					"content": prompt
 				}]
 			}
+			
+			# 🔧 为GLM API添加必要参数
+			if api_type == "GLM":
+				request_data["stream"] = false
+			
+			return request_data
 		"gemini":
 			return {
 				"contents": [{
@@ -278,11 +284,17 @@ static func parse_response(api_type: String, response: Dictionary, character_nam
 			return response.response
 		
 		"openai":
+			# 🔍 调试：打印完整的API响应
+			print("[APIConfig] %s 的完整API响应：" % character_name)
+			print(JSON.stringify(response, "  "))
+			
 			if not "choices" in response or not response.has("choices") or response.choices.size() == 0:
 				print("[APIConfig] %s 的OpenAI格式API响应错误：缺少choices字段或为空" % character_name)
+				print("[APIConfig] 响应中的字段：", response.keys())
 				return ""
 			if not response.choices[0].has("message") or not response.choices[0].message.has("content"):
 				print("[APIConfig] %s 的OpenAI格式API响应错误：缺少message或content字段" % character_name)
+				print("[APIConfig] choices[0]的字段：", response.choices[0].keys())
 				return ""
 			return response.choices[0].message.content
 		

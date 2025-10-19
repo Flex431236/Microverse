@@ -74,12 +74,24 @@ func generate_dialog(prompt: String, character_name: String = "") -> HTTPRequest
 	
 	# 使用APIConfig构建请求
 	var headers = APIConfig.build_headers(ai_settings.api_type, ai_settings.api_key)
-	var data = JSON.stringify(APIConfig.build_request_data(ai_settings.api_type, ai_settings.model, prompt))
+	var request_data = APIConfig.build_request_data(ai_settings.api_type, ai_settings.model, prompt)
+	var data = JSON.stringify(request_data)
 	var url = APIConfig.get_url(ai_settings.api_type, ai_settings.model)
 	
 	print("[APIManager] 发送请求到 ", ai_settings.api_type, " API，模型：", ai_settings.model)
-	
 	print("[APIManager] 请求URL：", url)
+	
+	# 🔍 调试：打印请求详情
+	print("[APIManager] 请求头：")
+	for header in headers:
+		# 隐藏API Key的完整内容
+		if header.begins_with("Authorization"):
+			print("  ", header.substr(0, header.find(":") + 10), "... (已隐藏)")
+		else:
+			print("  ", header)
+	print("[APIManager] 请求体：")
+	print(JSON.stringify(request_data, "  "))
+	
 	print("[APIManager] 创建HTTPRequest节点：", http_request.name)
 	http_request.request(url, headers, HTTPClient.METHOD_POST, data)
 	return http_request
