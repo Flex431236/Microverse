@@ -35,9 +35,14 @@ func _ready():
 		var chat_history = chat_history_scene.instantiate()
 		add_child(chat_history)
 	
-	# 创建AI代理
-	ai_agent = AIAgent.new()
-	add_child(ai_agent)
+	# 创建AI代理（确保只创建一次）
+	if not ai_agent:
+		ai_agent = AIAgent.new()
+		ai_agent.name = "AIAgent"
+		add_child(ai_agent)
+		print("[CharacterController] %s 的AIAgent已创建" % name)
+	else:
+		print("[CharacterController] %s 的AIAgent已存在，跳过创建" % name)
 	
 	# 创建AI模型显示标签
 	create_ai_model_label()
@@ -50,7 +55,8 @@ func _ready():
 func set_selected(selected: bool):
 	is_selected = selected
 	# 切换AI代理的控制状态
-	ai_agent.toggle_player_control(selected)
+	if ai_agent:
+		ai_agent.toggle_player_control(selected)
 	# 可以在这里添加选中效果,比如添加一个光环或改变颜色
 
 func move_to(target: Vector2):
@@ -239,6 +245,10 @@ func _recalculate_path():
 		print("[CharacterController] %s 重新计算路径完成，路径点数量: %d" % [name, navigation_path.size()])
 
 func _physics_process(delta):
+	# 【修复0】检查ai_agent是否存在，避免空指针错误
+	if not ai_agent:
+		return
+	
 	# 【修复1】确保AnimatedSprite2D始终可见
 	if $AnimatedSprite2D:
 		$AnimatedSprite2D.visible = true
